@@ -1,9 +1,13 @@
 (function() {
 
-    var canvas, ctx, mouse;
+    var canvas, ctx, mouse, gameInterval;
     var balls = [];
     var width = 800;
     var height = 600;
+    var score = 100;
+    var levelIndex = 0;
+    var placed = false;
+    var burst = 0;
 
     /**
      * Starts the game.
@@ -18,7 +22,7 @@
         mouse.click(placeBall);
 
         populate(30);
-        setInterval(play, config.tickRate);
+        gameInterval = setInterval(play, config.tickRate);
     };
 
     /**
@@ -28,8 +32,44 @@
         for(idx in balls) {
             if(!updateBall(balls[idx])) {
                 balls.splice(idx, 1);
+                if(isOver()) {
+                    endRound();
+                }
             }  
         }
+    };
+
+    var endRound = function() {
+        balls.length = 0;
+        if(burst >= levels[levelIndex].required) {
+            levelIndex++;
+
+            if(levelIndex >= levels.length) {
+                win();
+            }
+
+            populate();
+            burst = 0;
+            score = 0;
+            placed = false;
+        } else {
+            lose();
+        }
+    };
+
+    var win = function() {
+        console.log("win");
+    };
+
+    var lose = function() {
+        console.log("lose");
+        clearInterval(gameInterval);
+    };
+
+    var isOver = function() {
+        return balls.reduce(function(pr, cu) {
+            return pr && !cu.stuck;
+        });  
     };
 
     var updateBall = function(ball, idx) {
@@ -76,8 +116,10 @@
                 var other = balls[idx];
                 if(other != ball && !other.stuck) {
                     if(ball.dist(other) < ball.radius + other.radius) {
+                        burst++;
                         other.stick();
                         other.value = ball.value * 2;
+                        score += other.value;
                     }
                 }
             }
@@ -91,17 +133,20 @@
     };
 
     var placeBall = function(x, y) {
-        
-        var cueBall = new Ball(
-            x, y,
-            0, 0,
-            config.ballRadius,
-            true // cueball
-        );
-        cueBall.stick();
+        // only allow the user to
+        // place one ball
+        if(!placed) {
+            placed = true;    
+            var cueBall = new Ball(
+                x, y,
+                0, 0,
+                config.ballRadius,
+                true // cueball
+            );
+            cueBall.stick();
 
-        balls.push(cueBall);
-
+            balls.push(cueBall);
+        }
     };
 
     //***********// 
@@ -126,23 +171,29 @@
     // ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
     var populate = function(amount) {
-        console.log("POPULATE");
+        var level = levels[levelIndex];
+        createBalls(level.total);
+    };
 
+    var createBalls = function(number) {
+        for(var i = 0; i < number; i++) {
+            createBall();
+        }    
+    };
+
+    var createBall = function() {
         // ball settings
         var x, y, i, j, r;
-
-        for(var _ = 0; _ < amount; _++) {
-            x = Math.random() * width;
-            y = Math.random() * height;
-            i = Math.random() - 0.5,
-            j = Math.random() - 0.5
-            r = config.ballRadius;
-            balls.push(new Ball(
-                x, y, // coords
-                i, j, // velocity
-                r     // radius
-            ));
-        }
+        x = config.ballRadius + Math.random() * (width - config.ballRadius * 2);
+        y = config.ballRadius + Math.random() * (height - config.ballRadius * 2);
+        i = Math.random() - 0.5,
+        j = Math.random() - 0.5
+        r = config.ballRadius;
+        balls.push(new Ball(
+            x, y, // coords
+            i, j, // velocity
+            r     // radius
+        ));
     };
 
     var play = function() {
@@ -168,15 +219,24 @@
             ctx.fillStyle = "hsla("+ ball.hue +", 50%, 50%, 0.5)";
             ctx.ellipse(0, 0, ball.radius);
 
-            if(ball.stuck && ball.lifetime > 0) {
-                ctx.fillStyle = "#fff";
-                ctx.font="12px Arial";
+            ctx.fillStyle = "#fff";
+            ctx.font="12px Arial";
+            if(ball.stuck && ball.lifetime > 0) {    
                 var textLength = ball.value.toString().length * 7;
                 ctx.fillText(ball.value, -(textLength / 2), 6);
             }
 
             ctx.restore();
         }
+
+        ctx.fillStyle = "#fff";
+        ctx.font="14px Arial";
+        ctx.fillText(score, 10, 20);
+
+        var progress = burst +"/"+ levels[levelIndex].required;
+        ctx.fillText(progress, width / 2 - progress.length * 7, 20);
+        ctx.fillStyle = "#222";
+
     };
 
     window.addEventListener("load", init);

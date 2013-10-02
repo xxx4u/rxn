@@ -39,6 +39,11 @@
         }
     };
 
+    /**
+     * End of the round
+     * To be called when no there 
+     * are no stuck balls left
+     */
     var endRound = function() {
         balls.length = 0;
         if(burst >= levels[levelIndex].required) {
@@ -57,38 +62,50 @@
         }
     };
 
+    /**
+     * Win state
+     */
     var win = function() {
         console.log("win");
+        clearInterval(gameInterval);
     };
 
+    /**
+     * Lose state
+     */
     var lose = function() {
         console.log("lose");
         clearInterval(gameInterval);
     };
 
+    /**
+     * Is the round finished?
+     */
     var isOver = function() {
         return balls.reduce(function(pr, cu) {
             return pr && !cu.stuck;
         });  
     };
 
-    var updateBall = function(ball, idx) {
-
+    /**
+     * Update a ball
+     * Takes a ball object
+     */
+    var updateBall = function(ball) {
+        // edge collisions
         if(ball.pos.x + ball.radius > width) {
             ball.vel.i *= -1;
         }
-
         if(ball.pos.x - ball.radius < 0) {
             ball.vel.i *= -1;
         }
-
         if(ball.pos.y + ball.radius > height) {
             ball.vel.j *= -1;
         }
-
         if(ball.pos.y - ball.radius < 0) {
             ball.vel.j *= -1;
         }
+
 
         if(ball.stuck) {
             ball.lifetime--;
@@ -132,6 +149,10 @@
         return true;
     };
 
+    /**
+     * Place the cue ball
+     * at the mouse position.
+     */
     var placeBall = function(x, y) {
         // only allow the user to
         // place one ball
@@ -141,7 +162,7 @@
                 x, y,
                 0, 0,
                 config.ballRadius,
-                true // cueball
+                true // cueball boolean
             );
             cueBall.stick();
 
@@ -149,38 +170,28 @@
         }
     };
 
-    //***********// 
-    //__BECAUSE__//
-    ///\/\/\/\/\///
-
-    // ##*~*~*~*~*~*~*~*~*~*~##
-    //  | THAT WAS DOM BASED |
-    //  | THIS IS CANVAS     |
-    // ##*~*~*~*~*~*~*~*~*~*~##
-
-    //  o <- dom
-    // -|-[] <- canvas
-    // /\  /  <- dom has unhappy legs
-    // <==/ 
-    // | |
-    // he'll never have a career as a leg model
-    // poor dom
-
-    // HOORAY! FUN! YEAH! BISCUITS!
-    // ***** WEB DEVING ****** //
-    // ~~~~~~~~~~~~~~~~~~~~~~~~~~
-
+    /**
+     * Populate the game with 
+     * information for the current
+     * level
+     */
     var populate = function(amount) {
         var level = levels[levelIndex];
         createBalls(level.total);
     };
 
+    /**
+     * Create 'number' of balls
+     */
     var createBalls = function(number) {
         for(var i = 0; i < number; i++) {
             createBall();
         }    
     };
 
+    /**
+     * Create iat
+     */
     var createBall = function() {
         // ball settings
         var x, y, i, j, r;
@@ -235,6 +246,11 @@
 
         var progress = burst +"/"+ levels[levelIndex].required;
         ctx.fillText(progress, width / 2 - progress.length * 7, 20);
+
+
+        var roundText = "Round " + (levelIndex + 1);
+        ctx.fillText(roundText, width / 2 - roundText.length * 7, height - 20);
+
         ctx.fillStyle = "#222";
 
     };

@@ -4,10 +4,12 @@
     var balls = [];
     var width = 800;
     var height = 600;
-    var score = 100;
+    var score = 0;
     var levelIndex = 0;
     var placed = false;
     var burst = 0;
+    var mod = modifiers.medium;
+    var fx = false;
 
     /**
      * Starts the game.
@@ -20,6 +22,11 @@
         ctx = canvas.getContext("2d");
         mouse = new Mouse(canvas);
         mouse.click(placeBall);
+
+        // apply modifier to all 
+        for(prop in config) {
+            config[prop] *= mod;
+        }
 
         populate(30);
         gameInterval = setInterval(play, config.tickRate);
@@ -39,6 +46,11 @@
         }
     };
 
+    /**
+     * End of the round
+     * To be called when no there 
+     * are no stuck balls left
+     */
     var endRound = function() {
         balls.length = 0;
         if(burst >= levels[levelIndex].required) {
@@ -46,49 +58,61 @@
 
             if(levelIndex >= levels.length) {
                 win();
+            } else {
+                populate();
             }
 
-            populate();
-            burst = 0;
-            score = 0;
-            placed = false;
         } else {
             lose();
         }
     };
 
+    /**
+     * Win state
+     */
     var win = function() {
         console.log("win");
-    };
-
-    var lose = function() {
-        console.log("lose");
         clearInterval(gameInterval);
     };
 
+    /**
+     * Lose state
+     */
+    var lose = function() {
+        console.log("lose");
+        // populate without
+        // increasing levelIndex
+        populate();
+    };
+
+    /**
+     * Is the round finished?
+     */
     var isOver = function() {
         return balls.reduce(function(pr, cu) {
             return pr && !cu.stuck;
         });  
     };
 
-    var updateBall = function(ball, idx) {
-
+    /**
+     * Update a ball
+     * Takes a ball object
+     */
+    var updateBall = function(ball) {
+        // edge collisions
         if(ball.pos.x + ball.radius > width) {
             ball.vel.i *= -1;
         }
-
         if(ball.pos.x - ball.radius < 0) {
             ball.vel.i *= -1;
         }
-
         if(ball.pos.y + ball.radius > height) {
             ball.vel.j *= -1;
         }
-
         if(ball.pos.y - ball.radius < 0) {
             ball.vel.j *= -1;
         }
+
 
         if(ball.stuck) {
             ball.lifetime--;
@@ -132,6 +156,10 @@
         return true;
     };
 
+    /**
+     * Place the cue ball
+     * at the mouse position.
+     */
     var placeBall = function(x, y) {
         // only allow the user to
         // place one ball
@@ -141,46 +169,41 @@
                 x, y,
                 0, 0,
                 config.ballRadius,
-                true // cueball
+                true // cueball boolean
             );
             cueBall.stick();
+            score += cueBall.value;
 
             balls.push(cueBall);
         }
     };
 
-    //***********// 
-    //__BECAUSE__//
-    ///\/\/\/\/\///
-
-    // ##*~*~*~*~*~*~*~*~*~*~##
-    //  | THAT WAS DOM BASED |
-    //  | THIS IS CANVAS     |
-    // ##*~*~*~*~*~*~*~*~*~*~##
-
-    //  o <- dom
-    // -|-[] <- canvas
-    // /\  /  <- dom has unhappy legs
-    // <==/ 
-    // | |
-    // he'll never have a career as a leg model
-    // poor dom
-
-    // HOORAY! FUN! YEAH! BISCUITS!
-    // ***** WEB DEVING ****** //
-    // ~~~~~~~~~~~~~~~~~~~~~~~~~~
-
+    /**
+     * Populate the game with 
+     * information for the current
+     * level
+     */
     var populate = function(amount) {
         var level = levels[levelIndex];
+        // reset
+        burst = 0;
+        score = 0;
+        placed = false;
         createBalls(level.total);
     };
 
+    /**
+     * Create 'number' of balls
+     */
     var createBalls = function(number) {
         for(var i = 0; i < number; i++) {
             createBall();
         }    
     };
 
+    /**
+     * Create a random ball
+     */
     var createBall = function() {
         // ball settings
         var x, y, i, j, r;
@@ -196,15 +219,27 @@
         ));
     };
 
+    /**
+     * Wrapper for update and render
+     */
     var play = function() {
         update();
         render();
     };
 
+    /**
+     * Render everything in the scene
+     */
     var render = function() {
-        ctx.fillRect(0, 0, width, height);
-        ctx.fillStyle = "#222";
+        ctx.save();
 
+        if(fx) {
+            ctx.fillStyle = "rgba(20,20,20,0.3)";
+        } else {
+            ctx.fillStyle = "#222;"
+        }
+        ctx.fillRect(0, 0, width, height);
+        
         // render mouse marker
         ctx.save();
         ctx.translate(mouse.x, mouse.y);
@@ -216,27 +251,50 @@
             ctx.save();
             var ball = balls[idx];
             ctx.translate(ball.pos.x, ball.pos.y);
+            
+            if(fx) {
+                ctx.strokeStyle = "hsla("+ ball.hue +", 80%, 80%, 0.1)";
+                ctx.ellipse(0, 0, ball.radius + 5, true);
+            }
+
             ctx.fillStyle = "hsla("+ ball.hue +", 50%, 50%, 0.5)";
             ctx.ellipse(0, 0, ball.radius);
 
-            ctx.fillStyle = "#fff";
-            ctx.font="12px Arial";
-            if(ball.stuck && ball.lifetime > 0) {    
-                var textLength = ball.value.toString().length * 7;
-                ctx.fillText(ball.value, -(textLength / 2), 6);
+            // write value if ball is not dead
+            if(ball.stuck && ball.lifetime > 0) {
+                ctx.fillStyle = "#fff"; 
+                var text = ("+" + ball.value);
+                label("+" + ball.value, 0, 0, 12, true);
             }
 
             ctx.restore();
         }
 
         ctx.fillStyle = "#fff";
-        ctx.font="14px Arial";
         ctx.fillText(score, 10, 20);
 
-        var progress = burst +"/"+ levels[levelIndex].required;
+        var progress = burst +"/"+ levels[levelIndex].required + " balls";
         ctx.fillText(progress, width / 2 - progress.length * 7, 20);
+
+
+        var roundText = "Round " + (levelIndex + 1);
+        ctx.fillText(roundText, width / 2 - roundText.length * 7, height - 20);
+
         ctx.fillStyle = "#222";
 
+        ctx.restore();
+    };
+
+    /**
+     * Helper method for writing text
+     */
+    var label = function(text, x, y, fontSize, centered) {
+        ctx.font = fontSize + "px Arial";
+        if(centered && typeof centered !== "undefined") {
+            x -= (text.length * (fontSize / 2)) / 2;
+            y += fontSize / 2;
+        }
+        ctx.fillText(text, x, y);
     };
 
     window.addEventListener("load", init);
